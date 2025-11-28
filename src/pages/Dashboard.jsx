@@ -240,14 +240,14 @@ const Dashboard = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setActive("Settings")}
-                className="flex sm:hidden rounded-lg bg-indigo-50 p-2 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                className="flex sm:hidden rounded-lg cursor-pointer bg-indigo-50 p-2 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 transition-colors"
               >
                 <SettingsIcon className="h-5 w-5" />
               </button>
 
               <button
                 onClick={() => setShowLogout(true)}
-                className="rounded-lg bg-red-50 p-2 text-red-500 border border-red-200 hover:bg-red-100 transition-colors"
+                className="rounded-lg bg-red-50 p-2 cursor-pointer text-red-500 border border-red-200 hover:bg-red-100 transition-colors"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -275,7 +275,7 @@ const Dashboard = () => {
               className="bg-white rounded-3xl p-6 w-full max-w-sm border border-indigo-200 shadow-2xl"
             >
               <div className="flex justify-center mb-4">
-                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-full cursor-pointer bg-red-100 flex items-center justify-center">
                   <LogOut className="h-6 w-6 text-red-500" />
                 </div>
               </div>
