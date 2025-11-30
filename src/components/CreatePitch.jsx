@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePitch } from "../context/PitchContext";
 import { useGemini } from "../context/GeminiContext";
 import { useAuth } from "../context/AuthContext";
@@ -21,6 +21,9 @@ import {
   Tag,
   X,
   Eye,
+  Zap,
+  Rocket,
+  Trophy,
 } from "lucide-react";
 
 const CreatePitch = () => {
@@ -47,48 +50,47 @@ const CreatePitch = () => {
   const [pitchesArray, setPitchesArray] = useState([]);
   const [allGenerated, setAllGenerated] = useState(false);
   const [loadingSections, setLoadingSections] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showGenerationCompleteModal, setShowGenerationCompleteModal] =
-    useState(false);
-  const [currentGeneratedField, setCurrentGeneratedField] = useState(null);
   const [activeTab, setActiveTab] = useState("create");
   const [showPitchModal, setShowPitchModal] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [currentSection, setCurrentSection] = useState("");
+  const [generationComplete, setGenerationComplete] = useState(false);
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedProgress(generationProgress);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [generationProgress]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setPitchData({ ...pitchData, [name]: value });
   };
 
-  const generateField = async (fieldName, prompt, label) => {
-    if (loadingSections[fieldName]) return;
-
-    setLoadingSections((prev) => ({ ...prev, [fieldName]: true }));
-    setCurrentGeneratedField({ name: fieldName, label });
-
+  const generateField = async (fieldName, prompt) => {
     try {
       let text = await callGeminiText(prompt);
       text = text.replace(/\*+/g, "").trim();
       setPitchData((prev) => ({ ...prev, [fieldName]: text }));
-
-      setTimeout(() => {
-        setCurrentGeneratedField(null);
-      }, 2000);
-
       return text;
     } catch (error) {
       console.error(`Error generating ${fieldName}:`, error);
-      setCurrentGeneratedField(null);
       throw error;
-    } finally {
-      setLoadingSections((prev) => ({ ...prev, [fieldName]: false }));
     }
   };
 
   const handleGenerateAll = async () => {
     if (!pitchData.company || !pitchData.product) return;
+
+    setShowProgressModal(true);
+    setGenerationProgress(0);
+    setAnimatedProgress(0);
+    setGenerationComplete(false);
 
     const fields = [
       {
@@ -139,15 +141,41 @@ const CreatePitch = () => {
     ];
 
     const updatedPitchData = { ...pitchData };
+    const totalFields = fields.length;
 
-    for (const field of fields) {
-      const text = await generateField(field.key, field.prompt, field.label);
-      updatedPitchData[field.key] = text;
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      setCurrentSection(field.label);
+      try {
+        const text = await generateField(field.key, field.prompt);
+        updatedPitchData[field.key] = text;
+        setGenerationProgress(Math.round(((i + 1) / totalFields) * 100));
+      } catch (error) {
+        console.error(`Error generating ${field.key}:`, error);
+      }
     }
 
     setPitchesArray((prev) => [...prev, updatedPitchData]);
     setAllGenerated(true);
-    setShowGenerationCompleteModal(true);
+    setGenerationComplete(true);
+
+    if (user) {
+      try {
+        await createPitch([updatedPitchData]);
+        setTimeout(() => {
+          setShowProgressModal(false);
+        }, 3000);
+      } catch (err) {
+        console.error("Auto-save failed:", err);
+        setTimeout(() => {
+          setShowProgressModal(false);
+        }, 3000);
+      }
+    } else {
+      setTimeout(() => {
+        setShowProgressModal(false);
+      }, 3000);
+    }
   };
 
   const handleCopy = async (text, fieldName) => {
@@ -157,55 +185,6 @@ const CreatePitch = () => {
       setTimeout(() => setCopiedField(null), 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
-    }
-  };
-
-  const handleSavePitch = async () => {
-    if (!user) {
-      alert("Please log in to save your pitch");
-      return;
-    }
-
-    if (!pitchData.title || !pitchData.company || !pitchData.product) {
-      alert("Please fill in at least the title, company, and product fields");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const latestPitch =
-        pitchesArray.length > 0
-          ? pitchesArray[pitchesArray.length - 1]
-          : pitchData;
-
-      const result = await createPitch([latestPitch]);
-
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
-        setPitchData({
-          title: "",
-          category: "",
-          company: "",
-          product: "",
-          tagline: "",
-          description: "",
-          problem: "",
-          solution: "",
-          targetMarket: "",
-          competition: "",
-          businessModel: "",
-          funding: "",
-          team: "",
-        });
-        setPitchesArray([]);
-        setAllGenerated(false);
-      }, 3000);
-    } catch (err) {
-      console.error("Save failed in component:", err);
-      alert(`Failed to save pitch: ${err.message || "Unknown error"}`);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -413,7 +392,7 @@ const CreatePitch = () => {
       <style jsx>{`
         @keyframes scale-in {
           0% {
-            transform: scale(0.9);
+            transform: scale(0.8);
             opacity: 0;
           }
           100% {
@@ -488,6 +467,88 @@ const CreatePitch = () => {
           }
         }
 
+        @keyframes slide-up {
+          0% {
+            transform: translateY(20px);
+            opacity: 0;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes rotate {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes gradient-shift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+
+        @keyframes sparkle {
+          0% {
+            transform: scale(0) rotate(0deg);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1) rotate(180deg);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(0) rotate(360deg);
+            opacity: 0;
+          }
+        }
+
+        @keyframes progress-fill {
+          0% {
+            stroke-dashoffset: 440;
+          }
+          100% {
+            stroke-dashoffset: 0;
+          }
+        }
+
+        @keyframes success-scale {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes confetti-fall {
+          0% {
+            transform: translateY(-100vh) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+
         .animate-scale-in {
           animation: scale-in 0.3s ease-out forwards;
         }
@@ -511,97 +572,189 @@ const CreatePitch = () => {
         .animate-pulse {
           animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+
+        .animate-slide-up {
+          animation: slide-up 0.5s ease-out forwards;
+        }
+
+        .animate-rotate {
+          animation: rotate 2s linear infinite;
+        }
+
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient-shift 3s ease infinite;
+        }
+
+        .animate-sparkle {
+          animation: sparkle 1s ease-in-out;
+        }
+
+        .progress-ring {
+          transform: rotate(-90deg);
+          transform-origin: 50% 50%;
+        }
+
+        .progress-ring-circle {
+          stroke-dasharray: 440;
+          stroke-dashoffset: 440;
+          transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+
+        .animate-success-scale {
+          animation: success-scale 0.5s ease-out forwards;
+        }
+
+        .confetti {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          animation: confetti-fall 3s linear infinite;
+        }
+
+        .gradient-text {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
       `}</style>
 
-      {showGenerationCompleteModal && (
+      {showProgressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 mx-4 max-w-md w-full transform animate-scale-in">
-            <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          <div className="bg-white rounded-3xl p-8 mx-4 max-w-lg w-full transform animate-scale-in shadow-2xl relative overflow-hidden">
+            {!generationComplete ? (
+              <div className="text-center relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-50"></div>
+                <div className="relative z-10">
+                  <div className="relative mb-8">
+                    <div className="w-32 h-32 mx-auto">
+                      <svg className="w-full h-full">
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="56"
+                          stroke="#e5e7eb"
+                          strokeWidth="12"
+                          fill="none"
+                        />
+                        <circle
+                          className="progress-ring progress-ring-circle"
+                          cx="64"
+                          cy="64"
+                          r="56"
+                          stroke="url(#gradient)"
+                          strokeWidth="12"
+                          fill="none"
+                          strokeLinecap="round"
+                          style={{
+                            strokeDashoffset:
+                              440 - (440 * animatedProgress) / 100,
+                          }}
+                        />
+                        <defs>
+                          <linearGradient
+                            id="gradient"
+                            x1="0%"
+                            y1="0%"
+                            x2="100%"
+                            y2="100%"
+                          >
+                            <stop offset="0%" stopColor="#6366f1" />
+                            <stop offset="100%" stopColor="#a855f7" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center">
+                          <span className="text-3xl font-bold gradient-text">
+                            {animatedProgress}%
+                          </span>
+                          <div className="flex justify-center mt-2">
+                            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute -top-2 -right-2">
+                      <Sparkles className="w-6 h-6 text-yellow-400 animate-sparkle" />
+                    </div>
+                    <div className="absolute -bottom-2 -left-2">
+                      <Zap
+                        className="w-6 h-6 text-blue-400 animate-sparkle"
+                        style={{ animationDelay: "0.5s" }}
+                      />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3 gradient-text">
+                    Creating Your Pitch
+                  </h3>
+                  <div className="mb-4">
+                    <p className="text-gray-600 mb-2">Currently working on:</p>
+                    <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full text-sm font-medium animate-pulse">
+                      {currentSection}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 animate-pulse">
+                    Our AI is crafting compelling content for your pitch...
+                  </p>
+                  <div className="mt-6 flex justify-center space-x-2">
+                    <div
+                      className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce"
+                      style={{ animationDelay: "0ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                      style={{ animationDelay: "150ms" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-pink-600 rounded-full animate-bounce"
+                      style={{ animationDelay: "300ms" }}
+                    ></div>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Pitch Generated Successfully!
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Your complete pitch has been generated with AI assistance.
-                Review, edit, and save your pitch.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => setShowGenerationCompleteModal(false)}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all"
-                >
-                  Review Pitch
-                </button>
+            ) : (
+              <div className="text-center relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50 opacity-50"></div>
+                <div className="relative z-10">
+                  <div className="relative mb-6">
+                    <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center animate-success-scale shadow-lg">
+                      <Trophy className="w-12 h-12 text-white" />
+                    </div>
+                    <div className="absolute -top-2 -right-2">
+                      <Sparkles className="w-6 h-6 text-yellow-400 animate-sparkle" />
+                    </div>
+                    <div className="absolute -bottom-2 -left-2">
+                      <Rocket
+                        className="w-6 h-6 text-blue-400 animate-sparkle"
+                        style={{ animationDelay: "0.5s" }}
+                      />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3 gradient-text">
+                    Pitch Generated Successfully!
+                  </h3>
+                  <p className="text-gray-600 mb-6 animate-slide-up">
+                    Your pitch has been generated and{" "}
+                    {user ? "automatically saved" : "created"}.
+                  </p>
+                  <button
+                    onClick={() => setShowProgressModal(false)}
+                    className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg animate-gradient"
+                  >
+                    View Your Pitch
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 mx-4 max-w-md w-full transform animate-scale-in">
-            <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Pitch Saved!
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Your pitch has been successfully saved to your dashboard.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => setShowSuccessModal(false)}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    setAllGenerated(false);
-                    setPitchesArray([]);
-                  }}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all"
-                >
-                  Create New
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {currentGeneratedField && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 sm:p-8 mx-4 max-w-md w-full transform animate-scale-in">
-            <div className="text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-                Content Generated!
-              </h3>
-              <p className="text-gray-600 mb-2">
-                Successfully generated{" "}
-                <span className="font-semibold text-indigo-600">
-                  {currentGeneratedField.label}
-                </span>
-              </p>
-              <p className="text-sm text-gray-500">
-                The content has been added to your pitch.
-              </p>
-            </div>
+            )}
           </div>
         </div>
       )}
 
       {showPitchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 Pitch Preview
@@ -652,7 +805,7 @@ const CreatePitch = () => {
 
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-          <div className="bg-linear-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 sm:px-6 py-6 sm:py-8 relative overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 sm:px-6 py-6 sm:py-8 relative overflow-hidden animate-gradient">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between">
               <div className="mb-4 sm:mb-0">
@@ -746,7 +899,7 @@ const CreatePitch = () => {
                     disabled={
                       geminiLoading || !pitchData.company || !pitchData.product
                     }
-                    className="group relative bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto"
+                    className="group relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto animate-gradient"
                   >
                     <div className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     {geminiLoading ? (
@@ -785,22 +938,6 @@ const CreatePitch = () => {
                     >
                       <Eye className="w-4 h-4" />
                       Preview Pitch
-                    </button>
-                    <button
-                      onClick={handleSavePitch}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          Save Pitch
-                        </>
-                      )}
                     </button>
                     <button
                       onClick={handleExportPDF}
@@ -851,7 +988,7 @@ const CreatePitch = () => {
                         )}
                       </div>
 
-                      <div className="bg-linear-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 sm:p-6 transition-all duration-200 hover:border-indigo-300 hover:shadow-md">
+                      <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-4 sm:p-6 transition-all duration-200 hover:border-indigo-300 hover:shadow-md">
                         {loadingSections[key] ? (
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mr-3" />

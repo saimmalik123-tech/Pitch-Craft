@@ -198,7 +198,17 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 flex items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md">
-                <User className="h-5 w-5" />
+                {!user ? (
+                  <User className="h-5 w-5" />
+                ) : (
+                  <img
+                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      user.user_metadata?.full_name || "User"
+                    )}&background=4F46E5&color=ffffff&size=128&rounded=true`}
+                    alt={user.user_metadata?.full_name || "User Avatar"}
+                    className="w-full h-ful rounded-full object-cover border-4 shadow-lg"
+                  />
+                )}
               </div>
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-indigo-800 truncate">
@@ -211,7 +221,7 @@ const Dashboard = () => {
             </div>
             <button
               onClick={() => setShowLogout(true)}
-              className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+              className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors cursor-pointer"
             >
               <LogOut className="h-5 w-5" />
             </button>
@@ -327,7 +337,7 @@ const DashboardHome = ({
             alt={user.user_metadata?.full_name || "User Avatar"}
             className="w-17 h-17 sm:w-25 sm:h-25 rounded-full object-cover border-4 border-indigo-500 shadow-lg"
           />
-          <div className="absolute bottom-0 right-0 h-6 w-6 bg-green-500 rounded-full border-2 border-white"></div>
+          <div className="absolute animate-bounce bottom-0 right-0 h-6 w-6 bg-green-500 rounded-full border-2 border-white"></div>
         </div>
         <div className="text-center sm:text-left">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">

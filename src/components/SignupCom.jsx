@@ -24,7 +24,6 @@ const SignupCom = () => {
     fullName: "",
     email: "",
     password: "",
-    confirmPassword: "",
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
@@ -59,10 +58,6 @@ const SignupCom = () => {
     if (!formData.password) newErrors.password = "Password is required";
     else if (formData.password.length < 8)
       newErrors.password = "Password must be at least 8 characters";
-    if (!formData.confirmPassword)
-      newErrors.confirmPassword = "Please confirm your password";
-    else if (formData.password !== formData.confirmPassword)
-      newErrors.confirmPassword = "Passwords don't match";
     if (!formData.agreeToTerms)
       newErrors.agreeToTerms = "You must agree to terms";
     setErrors(newErrors);
@@ -149,16 +144,16 @@ const SignupCom = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-teal-50 to-cyan-100 flex items-center justify-center p-4 overflow-hidden">
+    <div className="h-screen bg-linear-to-br from-teal-50 to-cyan-100 flex items-center justify-center p-4 overflow-hidden">
       <motion.div
-        className="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden"
+        className="w-full max-w-5xl bg-white rounded-2xl shadow-xl"
         initial="hidden"
         animate="visible"
         variants={containerVariants}
       >
-        <div className="flex flex-col md:flex-row">
+        <div className="flex flex-col md:flex-row md:h-[90vh] h-[98vh]">
           <motion.div
-            className="md:w-1/2 hidden bg-linear-to-br from-teal-500 to-cyan-700 p-8 lg:p-12 md:flex flex-col justify-center text-white"
+            className="md:w-1/2 hidden bg-linear-to-br from-teal-500 to-cyan-700 p-8 lg:p-12 md:flex flex-col justify-center text-white rounded-l-2xl overflow-hidden"
             variants={slideInLeft}
           >
             <motion.div
@@ -207,7 +202,10 @@ const SignupCom = () => {
               <UserPlus className="w-64 h-64 text-teal-300 opacity-50" />
             </motion.div>
           </motion.div>
-          <motion.div className="md:w-1/2 p-8 lg:p-12" variants={slideInRight}>
+          <motion.div
+            className="md:w-1/2 p-8 lg:p-12 flex flex-col justify-center"
+            variants={slideInRight}
+          >
             <motion.form
               onSubmit={handleSubmit}
               className="space-y-6"
@@ -274,7 +272,7 @@ const SignupCom = () => {
                     onChange={handleChange}
                     onFocus={() => setFocusedField("email")}
                     onBlur={() => setFocusedField(null)}
-                    className={`pl-10 border  focus:ring-teal-500 focus:border-teal-500 block w-full sm:text-sm border-gray-300 rounded-md p-3 transition-all ${
+                    className={`pl-10 border focus:ring-teal-500 focus:border-teal-500 block w-full sm:text-sm border-gray-300 rounded-md p-3 transition-all ${
                       errors.email ? "border-red-500" : ""
                     }`}
                     placeholder="you@example.com"
@@ -314,7 +312,7 @@ const SignupCom = () => {
                     onChange={handleChange}
                     onFocus={() => setFocusedField("password")}
                     onBlur={() => setFocusedField(null)}
-                    className={`pl-10 border  focus:ring-teal-500 focus:border-teal-500 block w-full sm:text-sm border-gray-300 rounded-md p-3 transition-all ${
+                    className={`pl-10 border focus:ring-teal-500 focus:border-teal-500 block w-full sm:text-sm border-gray-300 rounded-md p-3 transition-all ${
                       errors.password ? "border-red-500" : ""
                     }`}
                     placeholder="•••••••"
@@ -395,46 +393,6 @@ const SignupCom = () => {
                         ></motion.div>
                       </div>
                     </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              <motion.div variants={itemVariants}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password
-                </label>
-                <motion.div
-                  className="relative"
-                  variants={inputVariants}
-                  animate={focusedField === "confirmPassword" ? "focused" : ""}
-                >
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    onFocus={() => setFocusedField("confirmPassword")}
-                    onBlur={() => setFocusedField(null)}
-                    className={`pl-10 border focus:ring-teal-500 focus:border-teal-500 block w-full sm:text-sm border-gray-300 rounded-md p-3 transition-all ${
-                      errors.confirmPassword ? "border-red-500" : ""
-                    }`}
-                    placeholder="•••••••"
-                  />
-                </motion.div>
-                <AnimatePresence>
-                  {errors.confirmPassword && (
-                    <motion.p
-                      className="text-red-500 text-xs mt-1"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {errors.confirmPassword}
-                    </motion.p>
                   )}
                 </AnimatePresence>
               </motion.div>
