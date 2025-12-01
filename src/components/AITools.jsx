@@ -9,7 +9,9 @@ import {
   User,
   LogIn,
   Loader2,
+  X,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { usePitch } from "../context/PitchContext";
 import { useAuth } from "../context/AuthContext";
 
@@ -38,15 +40,15 @@ const AITools = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [isDeleting, setIsDeleting] = useState(null);
   const [showCopied, setShowCopied] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
 
-  // Category-specific loading states
   const [categoryLoading, setCategoryLoading] = useState({
     ideas: false,
     taglines: false,
     blogs: false,
   });
 
-  // State for generated content
   const [generatedContent, setGeneratedContent] = useState({
     idea: null,
     tagline: null,
@@ -74,7 +76,6 @@ const AITools = () => {
     if (!user) return;
 
     try {
-      // Fetch all categories in parallel
       await Promise.all([
         fetchCategory("ideas"),
         fetchCategory("taglines"),
@@ -120,7 +121,6 @@ const AITools = () => {
           console.error("Failed to copy text: ", err);
         });
     } else {
-      // Fallback for older browsers
       const textArea = document.createElement("textarea");
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -143,7 +143,6 @@ const AITools = () => {
       const idea = await generateIdea(ideaTopic);
       setGeneratedContent((prev) => ({ ...prev, idea }));
       setIdeaTopic("");
-      // Refresh ideas after generation
       await fetchCategory("ideas");
     } catch (err) {
       console.error("Error generating idea:", err);
@@ -159,7 +158,6 @@ const AITools = () => {
       setGeneratedContent((prev) => ({ ...prev, tagline }));
       setTaglineCompany("");
       setTaglineProduct("");
-      // Refresh taglines after generation
       await fetchCategory("taglines");
     } catch (err) {
       console.error("Error generating tagline:", err);
@@ -174,7 +172,6 @@ const AITools = () => {
       const blog = await generateBlog(blogTopic);
       setGeneratedContent((prev) => ({ ...prev, blog }));
       setBlogTopic("");
-      // Refresh blogs after generation
       await fetchCategory("blogs");
     } catch (err) {
       console.error("Error generating blog:", err);
@@ -185,13 +182,22 @@ const AITools = () => {
     setIsDeleting(id);
     try {
       await deleteAITool(id);
-      // Refresh the specific category after deletion
-      await fetchCategory(type + "s"); // Convert 'idea' to 'ideas', etc.
+      await fetchCategory(type + "s");
     } catch (err) {
       console.error("Error deleting item:", err);
     } finally {
       setIsDeleting(null);
     }
+  };
+
+  const openModal = (item) => {
+    setModalContent(item);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalContent(null);
   };
 
   const filteredTools = () => {
@@ -303,7 +309,6 @@ const AITools = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* Idea Generator */}
         <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-white to-indigo-50 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-4">
             <div className="bg-indigo-100 p-2 rounded-lg">
@@ -338,10 +343,11 @@ const AITools = () => {
             </button>
           </form>
 
-          {/* Display generated idea */}
           {generatedContent.idea && (
             <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-              <p className="text-sm text-gray-700">{generatedContent.idea}</p>
+              <p className="text-sm text-gray-700 line-clamp-3">
+                {generatedContent.idea}
+              </p>
               <div className="flex justify-end mt-2">
                 <button
                   onClick={() => handleCopy(generatedContent.idea)}
@@ -355,7 +361,6 @@ const AITools = () => {
           )}
         </div>
 
-        {/* Tagline Maker */}
         <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-white to-purple-50 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-4">
             <div className="bg-purple-100 p-2 rounded-lg">
@@ -402,10 +407,9 @@ const AITools = () => {
             </button>
           </form>
 
-          {/* Display generated tagline */}
           {generatedContent.tagline && (
             <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 line-clamp-3">
                 {generatedContent.tagline}
               </p>
               <div className="flex justify-end mt-2">
@@ -421,7 +425,6 @@ const AITools = () => {
           )}
         </div>
 
-        {/* Blog Writer */}
         <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-br from-white to-blue-50 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-4">
             <div className="bg-blue-100 p-2 rounded-lg">
@@ -454,7 +457,6 @@ const AITools = () => {
             </button>
           </form>
 
-          {/* Display generated blog */}
           {generatedContent.blog && (
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
               <h4 className="font-medium text-sm text-gray-800 mb-1">
@@ -477,7 +479,6 @@ const AITools = () => {
         </div>
       </div>
 
-      {/* History Section */}
       <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h3 className="text-xl font-bold text-gray-800">Your AI Creations</h3>
@@ -528,9 +529,12 @@ const AITools = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTools().length > 0 ? (
             filteredTools().map((item) => (
-              <div
+              <motion.div
                 key={item.id}
-                className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => openModal(item)}
+                whileHover={{ y: -5 }}
+                whileTap={{ scale: 0.98 }}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
@@ -544,7 +548,10 @@ const AITools = () => {
                     </span>
                   </div>
                   <button
-                    onClick={() => handleDelete(item.id, item.type)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.id, item.type);
+                    }}
                     disabled={isDeleting === item.id}
                     className="text-gray-400 hover:text-red-500 transition disabled:opacity-50"
                   >
@@ -583,14 +590,17 @@ const AITools = () => {
                     </span>
                   </div>
                   <button
-                    onClick={() => handleCopy(item.content)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(item.content);
+                    }}
                     className="text-indigo-600 hover:text-indigo-800 flex-shrink-0"
                     aria-label="Copy to clipboard"
                   >
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))
           ) : (
             <div className="col-span-full text-center py-8">
@@ -609,10 +619,105 @@ const AITools = () => {
       </div>
 
       {showCopied && (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50 transition-opacity duration-300">
+        <motion.div
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-50"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+        >
           Copied to clipboard
-        </div>
+        </motion.div>
       )}
+
+      <AnimatePresence>
+        {modalOpen && modalContent && (
+          <>
+            <motion.div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeModal}
+            >
+              <motion.div
+                className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", damping: 25 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {getIcon(modalContent.type)}
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded ${getTypeColor(
+                        modalContent.type
+                      )}`}
+                    >
+                      {getTypeLabel(modalContent.type)}
+                    </span>
+                    <h3 className="font-semibold text-gray-800">
+                      {modalContent.title || "Preview"}
+                    </h3>
+                  </div>
+                  <motion.button
+                    onClick={closeModal}
+                    className="text-gray-500 hover:text-gray-700"
+                    whileHover={{ rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X className="w-5 h-5" />
+                  </motion.button>
+                </div>
+                <div className="p-4 overflow-y-auto flex-grow">
+                  <div className="mb-4">
+                    {modalContent.topic && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Topic:</span>{" "}
+                        {modalContent.topic}
+                      </p>
+                    )}
+                    {modalContent.company && modalContent.product && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        <span className="font-medium">Company:</span>{" "}
+                        {modalContent.company} |{" "}
+                        <span className="font-medium">Product:</span>{" "}
+                        {modalContent.product}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Created:{" "}
+                      {new Date(modalContent.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="prose max-w-none">
+                    {modalContent.type === "blog" && modalContent.title && (
+                      <h2 className="text-xl font-bold mb-4">
+                        {modalContent.title}
+                      </h2>
+                    )}
+                    <p className="whitespace-pre-line">
+                      {modalContent.content}
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-gray-200 flex justify-end">
+                  <motion.button
+                    onClick={() => handleCopy(modalContent.content)}
+                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy Content
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
