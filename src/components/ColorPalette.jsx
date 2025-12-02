@@ -18,9 +18,11 @@ import {
   Settings,
   PaintBucket,
   Eye,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import jsPDF from "jspdf";
 
 const ColorPalette = () => {
   const [palettes, setPalettes] = useState([]);
@@ -46,6 +48,7 @@ const ColorPalette = () => {
   const [themeType, setThemeType] = useState("vibrant");
   const [showThemeExample, setShowThemeExample] = useState(false);
   const [examplePalette, setExamplePalette] = useState(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const { user } = useAuth();
 
   const showPopup = (type, message) => {
@@ -363,7 +366,7 @@ const ColorPalette = () => {
       return new Date(b.created_at) - new Date(a.created_at);
     });
 
-  const exportHistory = () => {
+  const exportAsJSON = () => {
     const dataStr = JSON.stringify(history, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
@@ -371,6 +374,78 @@ const ColorPalette = () => {
     link.download = "color-palette-history.json";
     link.href = url;
     link.click();
+    setShowExportOptions(false);
+  };
+
+  const exportAsPDF = () => {
+    const pdf = new jsPDF();
+
+    pdf.setFontSize(20);
+    pdf.text("Color Palette History", 20, 20);
+
+    let yPosition = 40;
+
+    filteredHistory.forEach((palette, index) => {
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(14);
+      pdf.text(`Palette ${index + 1}`, 20, yPosition);
+
+      yPosition += 10;
+      pdf.setFontSize(10);
+      pdf.text(
+        `Created: ${new Date(palette.created_at).toLocaleDateString()}`,
+        20,
+        yPosition
+      );
+
+      yPosition += 10;
+      pdf.text("Colors:", 20, yPosition);
+
+      yPosition += 7;
+      palette.colors.forEach((color) => {
+        pdf.setTextColor(color);
+        pdf.rect(20, yPosition - 5, 10, 10, "F");
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(color, 35, yPosition);
+        yPosition += 7;
+      });
+
+      yPosition += 10;
+    });
+
+    pdf.save("color-palette-history.pdf");
+    setShowExportOptions(false);
+  };
+
+  const exportAsTXT = () => {
+    let textContent = "COLOR PALETTE HISTORY\n";
+    textContent += "=====================\n\n";
+
+    filteredHistory.forEach((palette, index) => {
+      textContent += `Palette ${index + 1}\n`;
+      textContent += `Created: ${new Date(
+        palette.created_at
+      ).toLocaleDateString()}\n`;
+      textContent += "Colors:\n";
+
+      palette.colors.forEach((color) => {
+        textContent += `- ${color}\n`;
+      });
+
+      textContent += "\n";
+    });
+
+    const dataBlob = new Blob([textContent], { type: "text/plain" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.download = "color-palette-history.txt";
+    link.href = url;
+    link.click();
+    setShowExportOptions(false);
   };
 
   const sharePalette = async (palette) => {
@@ -540,7 +615,6 @@ const ColorPalette = () => {
           className="min-h-screen"
           style={{ backgroundColor: background, color: text }}
         >
-          {/* Header */}
           <header
             className="sticky top-0 z-50 py-4 px-6 flex justify-between items-center shadow-md"
             style={{ backgroundColor: primary }}
@@ -600,7 +674,6 @@ const ColorPalette = () => {
             </button>
           </header>
 
-          {/* Hero Section */}
           <section className="py-16 px-6 text-center">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
@@ -630,7 +703,6 @@ const ColorPalette = () => {
             </div>
           </section>
 
-          {/* Features Section */}
           <section className="py-16 px-6">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
@@ -688,7 +760,6 @@ const ColorPalette = () => {
             </div>
           </section>
 
-          {/* Testimonials Section */}
           <section
             className="py-16 px-6"
             style={{ backgroundColor: adjustColor(primary, 5) }}
@@ -742,7 +813,6 @@ const ColorPalette = () => {
             </div>
           </section>
 
-          {/* Pricing Section */}
           <section className="py-16 px-6">
             <div className="max-w-6xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
@@ -851,7 +921,6 @@ const ColorPalette = () => {
             </div>
           </section>
 
-          {/* CTA Section */}
           <section
             className="py-16 px-6 text-center"
             style={{ backgroundColor: primary }}
@@ -882,7 +951,6 @@ const ColorPalette = () => {
             </div>
           </section>
 
-          {/* Footer */}
           <footer className="py-12 px-6" style={{ backgroundColor: secondary }}>
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
               <div>
@@ -1334,14 +1402,52 @@ const ColorPalette = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
-              <button
-                onClick={exportHistory}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 border border-gray-200 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md"
-                style={{ color: themeColors.text }}
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportOptions(!showExportOptions)}
+                  className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-3 border border-gray-200 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md"
+                  style={{ color: themeColors.text }}
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                <AnimatePresence>
+                  {showExportOptions && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-10"
+                      style={{ backgroundColor: themeColors.background }}
+                    >
+                      <button
+                        onClick={exportAsJSON}
+                        className="block w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors"
+                        style={{ color: themeColors.text }}
+                      >
+                        Export as JSON
+                      </button>
+                      <button
+                        onClick={exportAsPDF}
+                        className="block w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors"
+                        style={{ color: themeColors.text }}
+                      >
+                        Export as PDF
+                      </button>
+                      <button
+                        onClick={exportAsTXT}
+                        className="block w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors"
+                        style={{ color: themeColors.text }}
+                      >
+                        Export as TXT
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
               {history.length > 0 && (
                 <button
                   onClick={clearAllHistory}
