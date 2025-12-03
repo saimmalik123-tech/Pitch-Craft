@@ -78,7 +78,7 @@ const Settings = () => {
   };
 
   const confirmClearData = async () => {
-    if (deleteConfirmation !== "DELETE") return;
+    if (deleteConfirmation !== user.email) return;
 
     setShowDeleteConfirmation(false);
     setDeleteConfirmation("");
@@ -498,7 +498,8 @@ const Settings = () => {
               </p>
 
               <p className="mb-4 text-gray-600">
-                Type <span className="font-bold text-red-600">DELETE</span> to
+                Type{" "}
+                <span className="font-bold text-red-600">{user.email}</span> to
                 confirm:
               </p>
 
@@ -507,15 +508,15 @@ const Settings = () => {
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
                 className="w-full p-3 border border-red-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-                placeholder="Type DELETE here"
+                placeholder={`Type ${user.email} here`}
               />
 
               <div className="flex justify-center gap-4">
                 <button
                   onClick={confirmClearData}
-                  disabled={deleteConfirmation !== "DELETE"}
+                  disabled={deleteConfirmation !== user.email}
                   className={`px-4 py-2 rounded-xl ${
-                    deleteConfirmation === "DELETE"
+                    deleteConfirmation === user.email
                       ? "bg-red-600 text-white hover:bg-red-700"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed"
                   }`}

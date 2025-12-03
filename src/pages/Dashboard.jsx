@@ -211,7 +211,7 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-indigo-800 truncate">
+                <p className="text-sm font-semibold text-indigo-800 truncate w-34">
                   {user.email || "Loading..."}
                 </p>
                 <p className="text-xs text-indigo-600 truncate">
